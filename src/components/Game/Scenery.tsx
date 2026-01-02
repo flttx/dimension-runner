@@ -146,22 +146,22 @@ export class SceneryManager {
     const scaledSize = new THREE.Vector3();
     scaledBox.getSize(scaledSize);
 
-    // 使用 LOD 在远距离切换为低多边形代理。
+    // 远处使用半透明雾团替代方块，避免占位立方体的突兀感。
+    const fogColor = sceneryTint[this.theme].clone();
+    const hazeRadius = Math.max(0.8, Math.max(scaledSize.x, scaledSize.y, scaledSize.z) * 0.55);
     const lowDetail = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        Math.max(0.5, scaledSize.x),
-        Math.max(0.5, scaledSize.y),
-        Math.max(0.5, scaledSize.z)
-      ),
-      new THREE.MeshStandardMaterial({
-        color: sceneryTint[this.theme],
-        metalness: 0.1,
-        roughness: 0.9,
+      new THREE.SphereGeometry(hazeRadius, 20, 16),
+      new THREE.MeshBasicMaterial({
+        color: fogColor,
+        transparent: true,
+        opacity: 0.35,
+        depthWrite: false,
+        fog: true,
       })
     );
     lowDetail.position.y = scaledSize.y * 0.5;
     lowDetail.castShadow = false;
-    lowDetail.receiveShadow = true;
+    lowDetail.receiveShadow = false;
 
     const lod = new THREE.LOD();
     lod.addLevel(model, 0);

@@ -244,7 +244,7 @@ export class PlayerController {
     }
   }
 
-  update(delta: number) {
+  update(delta: number, speed = 12) {
     const targetX = lanePositions[this.targetLane];
     this.group.position.x = THREE.MathUtils.lerp(
       this.group.position.x,
@@ -273,16 +273,25 @@ export class PlayerController {
       this.runTimer += delta;
       const stride = Math.sin(this.runTimer * 12);
       const sway = Math.sin(this.runTimer * 6);
-      this.avatar.position.y = stride * 0.13;
-      this.avatar.rotation.x = -0.18 + sway * 0.06;
-      this.avatar.rotation.y = this.avatarBaseRotationY;
-      this.avatar.rotation.z = stride * 0.1;
+      const speedFactor = Math.min(speed / 18, 1.4);
+      const laneLean = THREE.MathUtils.clamp(
+        (targetX - this.group.position.x) * 0.4,
+        -0.35,
+        0.35
+      );
+      this.avatar.position.y = stride * (0.12 + 0.05 * speedFactor);
+      this.avatar.rotation.x = -0.22 - 0.05 * speedFactor + sway * 0.05;
+      this.avatar.rotation.y = this.avatarBaseRotationY + laneLean * 0.35;
+      this.avatar.rotation.z = stride * 0.12 + laneLean;
       if (this.weapon) {
         this.weapon.position.y = this.weaponBasePosition.y + stride * 0.1;
         this.weapon.position.x = this.weaponBasePosition.x + sway * 0.05;
-        this.weapon.rotation.x = this.weaponBaseRotation.x + stride * 0.85;
-        this.weapon.rotation.y = this.weaponBaseRotation.y + sway * 0.22;
-        this.weapon.rotation.z = this.weaponBaseRotation.z + stride * 0.35;
+        this.weapon.rotation.x =
+          this.weaponBaseRotation.x + stride * 0.85 - speedFactor * 0.05;
+        this.weapon.rotation.y =
+          this.weaponBaseRotation.y + sway * 0.22 + laneLean * 0.25;
+        this.weapon.rotation.z =
+          this.weaponBaseRotation.z + stride * 0.35 + laneLean * 0.4;
       }
     }
 

@@ -30,17 +30,26 @@ export class ModelLibrary {
       return existing;
     }
     // 避免同一模型在并发预载时被重复下载与解析。
-    const task = this.loader.loadAsync(url).then((gltf) => {
-      const root = gltf.scene || new THREE.Group();
-      root.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-      this.cache.set(url, root);
-      return root;
-    });
+    const task = (async () => {
+      try {
+        const gltf = await this.loader.loadAsync(url);
+        const root = gltf.scene || new THREE.Group();
+        root.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        this.cache.set(url, root);
+        return root;
+      } catch (error) {
+        // 遇到损坏或缺失的模型时，用空节点占位并写入缓存，避免游戏直接崩溃。
+        console.error(`[ModelLibrary] 模型加载失败：${url}`, error);
+        const placeholder = new THREE.Group();
+        this.cache.set(url, placeholder);
+        return placeholder;
+      }
+    })();
     this.pending.set(url, task);
     try {
       return await task;

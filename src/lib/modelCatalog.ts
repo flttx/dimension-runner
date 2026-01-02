@@ -14,7 +14,7 @@ export const pickModelUrl = (ref: ModelRef) => {
 
 export const modelCatalog = {
   player: {
-    xianxia: "/assets/models/sketchfab/xianxia/player_samurai_girl.glb",
+    xianxia: "/assets/models/sketchfab/xianxia/player_monk.glb",
     minecraft: "/assets/models/sketchfab/minecraft/player_steve.glb",
   },
   weapon: {
@@ -73,8 +73,7 @@ export const modelCatalog = {
     },
   } satisfies Record<PowerUpType, Record<Theme, ModelRef>>,
   track: {
-    xianxia:
-      "/assets/models/sketchfab/xianxia/track_cobblestone_highpoly.glb",
+    xianxia: "/assets/models/sketchfab/xianxia/road_cobblestone.glb",
     minecraft: "/assets/models/sketchfab/minecraft/track_road_pack.glb",
   },
   scenery: {

@@ -134,6 +134,9 @@ export default function Scene() {
     );
     camera.position.set(0, 6.5, -10);
     camera.lookAt(0, 1.5, 12);
+    camera.up.set(0, 1, 0);
+    const cameraPosTarget = new THREE.Vector3();
+    const cameraLookAt = new THREE.Vector3();
 
     const ambient = new THREE.AmbientLight("#ffffff", 0.25);
     const hemisphere = new THREE.HemisphereLight("#dce7ff", "#111620", 0.6);
@@ -530,7 +533,7 @@ export default function Scene() {
         const difficultySpeed = baseSpeed + distance * 0.02;
         speed = difficultySpeed + speedBoost;
 
-        player.update(delta);
+        player.update(delta, speed);
         track.update(delta, speed);
         obstacles.update(delta, speed);
         scenery.update(delta, speed, camera);
@@ -636,6 +639,32 @@ export default function Scene() {
           lastScoreEmit = now;
         }
       }
+
+      const playerX = player.group.position.x;
+      const playerY = player.group.position.y;
+      cameraPosTarget.set(
+        playerX * 0.75,
+        5.8 + Math.min(speed, 24) * 0.05 + playerY * 0.4,
+        -10 - Math.min(speed, 26) * 0.18
+      );
+      camera.position.lerp(
+        cameraPosTarget,
+        1 - Math.exp(-delta * 4.2)
+      );
+      cameraLookAt.set(
+        playerX * 0.55,
+        1.6 + playerY * 0.35,
+        11
+      );
+      camera.lookAt(cameraLookAt);
+      camera.up.set(0, 1, 0);
+      const fovTarget = 60 + Math.min(speed, 28) * 0.5;
+      camera.fov = THREE.MathUtils.lerp(
+        camera.fov,
+        fovTarget,
+        1 - Math.exp(-delta * 2.5)
+      );
+      camera.updateProjectionMatrix();
 
       composer.render();
       animationId = requestAnimationFrame(update);

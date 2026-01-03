@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
@@ -25,6 +25,7 @@ import { PlayerController } from "./Player";
 import { PowerUpManager } from "./PowerUps";
 import { SceneryManager } from "./Scenery";
 import { TrackManager } from "./Track";
+import { ParticleSystem } from "./Particles";
 
 const chunkLength = 100;
 const chunksAhead = 3;
@@ -91,11 +92,11 @@ export default function Scene() {
     const quality =
       qualityPreference === "auto"
         ? resolveQuality({
-            deviceMemory: nav.deviceMemory,
-            hardwareConcurrency: navigator.hardwareConcurrency,
-            width: window.innerWidth,
-            height: window.innerHeight,
-          })
+          deviceMemory: nav.deviceMemory,
+          hardwareConcurrency: navigator.hardwareConcurrency,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        })
         : qualityPreference;
     const qualityConfig = getQualityConfig(quality);
     setQualityLevel(quality);
@@ -112,19 +113,17 @@ export default function Scene() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = themeExposure.xianxia;
+    renderer.toneMappingExposure = 1.2; // Brighter overall
     if ("useLegacyLights" in renderer) {
       (renderer as THREE.WebGLRenderer & { useLegacyLights: boolean })
         .useLegacyLights = false;
     }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(themeFog.xianxia.color);
-    scene.fog = new THREE.Fog(
-      themeFog.xianxia.color,
-      themeFog.xianxia.near,
-      themeFog.xianxia.far
-    );
+    // Default background before env map loads
+    scene.background = new THREE.Color("#05070a");
+    // Lighter, further fog for depth
+    scene.fog = new THREE.FogExp2("#05070a", 0.012);
 
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -138,12 +137,25 @@ export default function Scene() {
     const cameraPosTarget = new THREE.Vector3();
     const cameraLookAt = new THREE.Vector3();
 
-    const ambient = new THREE.AmbientLight("#ffffff", 0.25);
-    const hemisphere = new THREE.HemisphereLight("#dce7ff", "#111620", 0.6);
-    const dirLight = new THREE.DirectionalLight("#ffffff", 2.2);
-    dirLight.position.set(6, 12, -4);
+    // Cinematic Lighting Setup
+    const ambient = new THREE.AmbientLight("#202533", 0.6); // Cool dark ambient
+    const hemisphere = new THREE.HemisphereLight("#4c6085", "#111620", 0.8); // Blue-ish skyline
+
+    // Main Key Light (Sun/Moon)
+    const dirLight = new THREE.DirectionalLight("#e0e7ff", 2.8);
+    dirLight.position.set(8, 15, -6);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.bias = -0.0001;
+    dirLight.shadow.radius = 4; // Softer shadows
+
+    scene.add(ambient, hemisphere, dirLight);
+
+    // Rim Light for 3D pop
+    const rimLight = new THREE.SpotLight("#00f0ff", 4.0);
+    rimLight.position.set(-10, 5, 5);
+    rimLight.lookAt(0, 0, 10);
+    scene.add(rimLight);
     dirLight.shadow.camera.near = 0.5;
     dirLight.shadow.camera.far = 60;
     dirLight.shadow.camera.left = -12;
@@ -195,6 +207,99 @@ export default function Scene() {
     const powerUps = new PowerUpManager(scene, "xianxia", models);
     const scenery = new SceneryManager(scene, "xianxia", models);
     const track = new TrackManager(scene, "xianxia");
+    const particles = new ParticleSystem(scene);
+
+    // VFX State
+    let shakeIntensity = 0;
+
+    // Simple Speed Lines System
+    const createSpeedLines = () => {
+      const count = 40;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 6); // 2 points per line, 3 coords per point
+      const lines = new THREE.LineSegments(
+        geometry,
+        new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        })
+      );
+
+      for (let i = 0; i < count; i++) {
+        // Random start positions in a tunnel shape
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 5 + Math.random() * 10;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius + 5; // Offset y to center roughly on screen
+        const z = -10 - Math.random() * 50;
+        const len = 2 + Math.random() * 4;
+
+        // Start point
+        positions[i * 6] = x;
+        positions[i * 6 + 1] = y;
+        positions[i * 6 + 2] = z;
+
+        // End point
+        positions[i * 6 + 3] = x;
+        positions[i * 6 + 4] = y;
+        positions[i * 6 + 5] = z - len;
+      }
+
+      const state = { opacity: 0 };
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      scene.add(lines);
+
+      return {
+        mesh: lines,
+        get opacity() { return state.opacity; },
+        set opacity(v) { state.opacity = v; },
+        update: (dt: number, speed: number) => {
+          lines.material.opacity = THREE.MathUtils.lerp(lines.material.opacity, state.opacity, dt * 2);
+          const pos = geometry.attributes.position.array as Float32Array;
+          const moveSpeed = speed * 1.5; // Lines move faster than world
+
+          for (let i = 0; i < count; i++) {
+            // Move both points of the line +Z
+            pos[i * 6 + 2] += moveSpeed * dt;
+            pos[i * 6 + 5] += moveSpeed * dt;
+
+            // If passed camera (approx z=0), reset to back
+            if (pos[i * 6 + 2] > 5) {
+              const angle = Math.random() * Math.PI * 2;
+              const radius = 4 + Math.random() * 8;
+              const x = Math.cos(angle) * radius;
+              const y = Math.sin(angle) * radius + 5;
+              const z = -60 - Math.random() * 20;
+              const len = 2 + Math.random() * 5;
+
+              pos[i * 6] = x;
+              pos[i * 6 + 1] = y;
+              pos[i * 6 + 2] = z;
+
+              pos[i * 6 + 3] = x;
+              pos[i * 6 + 4] = y;
+              pos[i * 6 + 5] = z - len;
+            }
+          }
+          geometry.attributes.position.needsUpdate = true;
+        },
+        dispose: () => {
+          scene.remove(lines);
+          geometry.dispose();
+          lines.material.dispose();
+        }
+      };
+    };
+
+    // We use a ref to hold the system so update() can access it without closure staleness issues if we were using state, 
+    // but here everything is inside useEffect. A simple object reference works.
+    const speedLines = createSpeedLines();
+    const speedLinesRef = { current: speedLines }; // Wrap to mimic ref for consistency inside update
+
 
     const clock = new THREE.Clock();
     let status: GameStatus = "idle";
@@ -230,7 +335,7 @@ export default function Scene() {
       if (environmentMap) {
         return environmentMap;
       }
-      const hdr = await new RGBELoader().loadAsync(environmentUrl);
+      const hdr = await new HDRLoader().loadAsync(environmentUrl);
       const envMap = pmremGenerator.fromEquirectangular(hdr).texture;
       hdr.dispose();
       environmentMap = envMap;
@@ -325,7 +430,7 @@ export default function Scene() {
         const lane = Math.floor(Math.random() * 3);
         const type =
           obstacleTypes[theme][
-            Math.floor(Math.random() * obstacleTypes[theme].length)
+          Math.floor(Math.random() * obstacleTypes[theme].length)
           ];
         const z = baseZ + 12 + Math.random() * (chunkLength - 24);
         obstacles.spawn(type, lane, z);
@@ -537,6 +642,7 @@ export default function Scene() {
         track.update(delta, speed);
         obstacles.update(delta, speed);
         scenery.update(delta, speed, camera);
+        particles.update(delta);
         powerUps.update(
           delta,
           speed,
@@ -572,12 +678,15 @@ export default function Scene() {
             player.setShield(powerUpState.shield > 0);
             obstacle.active = false;
             obstacle.group.visible = false;
+            particles.emit(obstacle.group.position, "#00ff9d", 30);
             setPowerUps({ ...powerUpState });
             audioManager.playSfx("powerup");
+            shakeIntensity = 2.0; // Moderate shake on shield use
           } else {
             status = "over";
             setStatusFromEngine("over");
             audioManager.playSfx("hit");
+            shakeIntensity = 5.0; // Violent shake on death
             audioManager.stopBgm();
           }
           break;
@@ -599,19 +708,24 @@ export default function Scene() {
               case "shield":
                 powerUpState.shield = Math.min(2, powerUpState.shield + 1);
                 player.setShield(true);
+                particles.emit(powerUp.group.position, "#00ff9d", 30);
                 break;
               case "speed":
                 powerUpState.speedUntil = performance.now() + 5000;
+                particles.emit(powerUp.group.position, "#7000ff", 30);
                 break;
               case "magnet":
                 powerUpState.magnetUntil = performance.now() + 7000;
+                particles.emit(powerUp.group.position, "#ff0055", 30);
                 break;
               case "clear":
                 powerUpState.hasClear = true;
+                particles.emit(powerUp.group.position, "#00f0ff", 50);
                 break;
               case "coin":
               default:
                 powerUpState.coins += 1;
+                particles.emit(powerUp.group.position, "#f3d478", 8);
                 break;
             }
             setPowerUps({ ...powerUpState });
@@ -643,28 +757,46 @@ export default function Scene() {
       const playerX = player.group.position.x;
       const playerY = player.group.position.y;
       cameraPosTarget.set(
-        playerX * 0.75,
-        5.8 + Math.min(speed, 24) * 0.05 + playerY * 0.4,
-        -10 - Math.min(speed, 26) * 0.18
+        playerX * 0.85,
+        3.5 + Math.min(speed, 24) * 0.02 + playerY * 0.5,
+        -7 - Math.min(speed, 26) * 0.12
       );
       camera.position.lerp(
         cameraPosTarget,
-        1 - Math.exp(-delta * 4.2)
+        1 - Math.exp(-delta * 5.0)
       );
       cameraLookAt.set(
-        playerX * 0.55,
-        1.6 + playerY * 0.35,
-        11
+        playerX * 0.6,
+        1.2 + playerY * 0.4,
+        14
       );
       camera.lookAt(cameraLookAt);
       camera.up.set(0, 1, 0);
-      const fovTarget = 60 + Math.min(speed, 28) * 0.5;
+      const fovTarget = 60 + Math.min(speed, 35) * 0.6 + (powerUpState.speedUntil > performance.now() ? 10 : 0);
       camera.fov = THREE.MathUtils.lerp(
         camera.fov,
         fovTarget,
-        1 - Math.exp(-delta * 2.5)
+        1 - Math.exp(-delta * 3.5)
       );
       camera.updateProjectionMatrix();
+
+      // Camera Shake
+      if (shakeIntensity > 0) {
+        const shake = shakeIntensity * 0.1;
+        camera.position.x += (Math.random() - 0.5) * shake;
+        camera.position.y += (Math.random() - 0.5) * shake;
+        camera.position.z += (Math.random() - 0.5) * shake;
+        shakeIntensity = Math.max(0, shakeIntensity - delta * 5);
+      }
+
+      // Update Speed Lines
+      if (speedLinesRef.current) {
+        const speedRatio = (speed - baseSpeed) / 20;
+        speedLinesRef.current.opacity = Math.max(0, Math.min(0.8, (speedRatio - 0.2) * 2));
+        if (speedLinesRef.current.opacity > 0) {
+          speedLinesRef.current.update(delta, speed);
+        }
+      }
 
       composer.render();
       animationId = requestAnimationFrame(update);
@@ -692,6 +824,8 @@ export default function Scene() {
       composer.dispose();
       renderer.dispose();
       setEngine(null);
+      speedLines.dispose();
+      particles.dispose();
     };
   }, [
     qualityPreference,

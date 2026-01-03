@@ -61,11 +61,13 @@ export default function ClientWrapper() {
   const Layout = isEmbedded ? EmbeddedLayout : StandaloneLayout;
 
   return (
-    <Layout>
-      <div className="game-stage">
+    <div className="app-shell">
+      <div className="scene-layer">
         <Scene />
-        <HUD />
       </div>
-    </Layout>
+      <Layout>
+        <HUD />
+      </Layout>
+    </div>
   );
 }

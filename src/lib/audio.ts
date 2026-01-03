@@ -6,7 +6,8 @@ type SfxName =
   | "powerup"
   | "hit"
   | "clear"
-  | "explosion";
+  | "explosion"
+  | "ui_click";
 
 const audioUrls = {
   bgm: {
@@ -20,6 +21,7 @@ const audioUrls = {
     hit: "/audio/sfx-hit.ogg",
     clear: "/audio/sfx-clear.ogg",
     explosion: "/audio/sfx-explosion.ogg",
+    ui_click: "/audio/sfx-collect.ogg",
   },
 };
 

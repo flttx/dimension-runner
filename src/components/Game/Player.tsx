@@ -48,41 +48,81 @@ export class PlayerController {
     this.fallback = new THREE.Group();
     this.theme = theme;
 
-    const bodyGeo = new THREE.BoxGeometry(0.9, 1.1, 0.6);
-    const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-    const weaponGeo = new THREE.BoxGeometry(0.1, 0.9, 0.1);
+    // -- Procedural Cyber-Runner Model --
+    const matBody = new THREE.MeshStandardMaterial({
+      color: themeColors[theme].body,
+      roughness: 0.3,
+      metalness: 0.7
+    });
+    const matAccent = new THREE.MeshStandardMaterial({
+      color: themeColors[theme].accent,
+      emissive: themeColors[theme].accent,
+      emissiveIntensity: 0.8
+    });
+    const matDark = new THREE.MeshStandardMaterial({ color: 0x333333 });
 
-    const materials = themeColors[theme];
-    const body = new THREE.Mesh(
-      bodyGeo,
-      new THREE.MeshStandardMaterial({ color: materials.body })
-    );
-    const head = new THREE.Mesh(
-      headGeo,
-      new THREE.MeshStandardMaterial({ color: materials.accent })
-    );
+    // Torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.35), matBody);
+    torso.position.y = 0.85;
+    torso.castShadow = true;
+
+    // Chest Core (Glowing)
+    const core = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.1), matAccent);
+    core.position.set(0, 0.1, 0.18);
+    torso.add(core);
+
+    // Head
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 0.5, 0);
+    const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.4), matBody);
+
+    // Visor
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.1, 0.25), matAccent);
+    visor.position.set(0, 0, 0.1);
+    headGroup.add(headMesh, visor);
+    torso.add(headGroup);
+
+    // Backpack / Jetpack
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.2), matDark);
+    pack.position.set(0, 0, -0.25);
+    torso.add(pack);
+
+    // Simple "Limbs" (Static Running Pose)
+    const limbGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
+    const leftArm = new THREE.Mesh(limbGeo, matBody);
+    leftArm.position.set(-0.35, 0, 0);
+    leftArm.rotation.x = -Math.PI / 4;
+
+    const rightArm = new THREE.Mesh(limbGeo, matBody);
+    rightArm.position.set(0.35, 0, 0);
+    rightArm.rotation.x = Math.PI / 4;
+
+    torso.add(leftArm, rightArm);
+
+    // Weapon
+    const weaponGeo = new THREE.BoxGeometry(0.1, 1.2, 0.1);
     const weapon = new THREE.Mesh(
       weaponGeo,
-      new THREE.MeshStandardMaterial({ color: materials.weapon })
+      new THREE.MeshStandardMaterial({ color: themeColors[theme].weapon, emissive: 0xffaa00, emissiveIntensity: 0.4 })
     );
+    weapon.position.set(0.35, -0.2, 0.3); // Hand held
+    weapon.rotation.x = Math.PI / 2;
+    rightArm.add(weapon); // Attach to arm
 
-    body.position.y = 0.6;
-    head.position.y = 1.4;
-    weapon.position.set(0.55, 0.95, 0.2);
-    weapon.rotation.z = Math.PI / 10;
-
-    const shieldGeo = new THREE.SphereGeometry(1.05, 18, 18);
+    const shieldGeo = new THREE.SphereGeometry(1.2, 32, 32);
     this.shield = new THREE.Mesh(
       shieldGeo,
       new THREE.MeshStandardMaterial({
-        color: materials.shield,
+        color: themeColors[theme].shield,
         transparent: true,
-        opacity: 0.25,
+        opacity: 0.3,
+        roughness: 0,
+        metalness: 1
       })
     );
     this.shield.visible = false;
 
-    this.fallback.add(body, head, weapon);
+    this.fallback.add(torso);
     this.avatar.add(this.fallback);
     this.avatar.rotation.y = this.avatarBaseRotationY;
     this.group.add(this.avatar, this.shield);
@@ -275,14 +315,14 @@ export class PlayerController {
       const sway = Math.sin(this.runTimer * 6);
       const speedFactor = Math.min(speed / 18, 1.4);
       const laneLean = THREE.MathUtils.clamp(
-        (targetX - this.group.position.x) * 0.4,
-        -0.35,
-        0.35
+        (targetX - this.group.position.x) * 0.6,
+        -0.5,
+        0.5
       );
       this.avatar.position.y = stride * (0.12 + 0.05 * speedFactor);
-      this.avatar.rotation.x = -0.22 - 0.05 * speedFactor + sway * 0.05;
-      this.avatar.rotation.y = this.avatarBaseRotationY + laneLean * 0.35;
-      this.avatar.rotation.z = stride * 0.12 + laneLean;
+      this.avatar.rotation.x = -0.25 - 0.08 * speedFactor + sway * 0.05; // More forward lean at speed
+      this.avatar.rotation.y = this.avatarBaseRotationY + laneLean * 0.5;
+      this.avatar.rotation.z = stride * 0.12 + laneLean * 1.2; // Dramatic roll
       if (this.weapon) {
         this.weapon.position.y = this.weaponBasePosition.y + stride * 0.1;
         this.weapon.position.x = this.weaponBasePosition.x + sway * 0.05;

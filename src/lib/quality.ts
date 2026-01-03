@@ -61,12 +61,12 @@ export const getQualityConfig = (level: QualityLevel): QualityConfig => {
       return {
         maxPixelRatio: 2,
         ssaoEnabled: true,
-        ssaoKernelRadius: 12,
+        ssaoKernelRadius: 16, // Increased radius
         ssaoMinDistance: 0.005,
-        ssaoMaxDistance: 0.15,
-        bloomStrength: 0.28,
-        bloomRadius: 0.45,
-        bloomThreshold: 0.85,
+        ssaoMaxDistance: 0.2, // Increased range
+        bloomStrength: 0.35, // Stronger bloom
+        bloomRadius: 0.55, // Wider bloom
+        bloomThreshold: 0.75, // Lower threshold for more glow
       };
   }
 };

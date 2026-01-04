@@ -232,8 +232,36 @@ export class PowerUpManager {
     return coin;
   }
 
-  private createModel(type: PowerUpType) {
-    const url = pickModelUrl(modelCatalog.powerUps[type][this.theme]);
+  private createModel(type: PowerUpType | "tribulation") {
+    if (type === "tribulation") {
+      const geometry = new THREE.SphereGeometry(0.4, 32, 32);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x440088,
+        emissive: 0xff0000,
+        emissiveIntensity: 2,
+        roughness: 0,
+        metalness: 0.8
+      });
+      const model = new THREE.Mesh(geometry, material);
+      // Halo
+      const haloGeo = new THREE.RingGeometry(0.5, 0.6, 32);
+      const haloMat = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+      const halo = new THREE.Mesh(haloGeo, haloMat);
+      model.add(halo);
+
+      // Float animation pivot
+      const pivot = new THREE.Group();
+      pivot.add(model);
+      model.position.y = 0.5;
+
+      return {
+        model: pivot,
+        hitRadius: 0.6,
+        hitOffsetY: 0.5
+      };
+    }
+
+    const url = pickModelUrl(modelCatalog.powerUps[type as PowerUpType][this.theme]);
     const model = this.models.clone(url);
     const targetSize = type === "coin" ? 0.45 : 0.7;
     scaleToMax(model, targetSize);

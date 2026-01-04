@@ -18,7 +18,7 @@ import {
 import { ModelLibrary } from "@/lib/modelLoader";
 import { getQualityConfig, resolveQuality } from "@/lib/quality";
 import { useGameStore } from "@/store/gameStore";
-import type { GameStatus, ObstacleType, PowerUpState, Theme } from "@/types";
+import type { GameStatus, ObstacleType, PowerUpState, Theme, Biome } from "@/types";
 
 import { ObstacleManager } from "./Obstacles";
 import { PlayerController } from "./Player";
@@ -26,6 +26,14 @@ import { PowerUpManager } from "./PowerUps";
 import { SceneryManager } from "./Scenery";
 import { TrackManager } from "./Track";
 import { ParticleSystem } from "./Particles";
+import { TribulationManager } from "./Tribulation";
+
+const powerUpTypes = ["shield", "speed", "clear", "magnet", "tribulation"] as const;
+
+// --- BIOME SYSTEM ---
+
+let currentBiome: Biome = 'city'; // Global state (simpler than prop drill for now)
+
 
 const chunkLength = 100;
 const chunksAhead = 3;
@@ -44,11 +52,19 @@ const themeExposure = {
 };
 
 const obstacleTypes: Record<Theme, ObstacleType[]> = {
-  xianxia: ["lightning", "sword_rain", "boulder"],
-  minecraft: ["creeper", "tnt", "lava"],
+  xianxia: [
+    "lightning", "sword_rain", "boulder", "beast", "whirlwind",
+    "falling_seal", "spirit_laser", "ice_spikes",
+    "soul_bell", "bagua", "ghost_fire", "golden_lotus", "iron_chains",
+    "stone_stele", "sword_array", "furnace", "talisman", "yin_yang"
+  ],
+  minecraft: [
+    "creeper", "tnt", "lava",
+    "mc_anvil", "mc_cactus", "mc_magma", "mc_arrow"
+  ],
 };
 
-const powerUpTypes = ["shield", "speed", "clear", "magnet"] as const;
+
 
 const createPowerUpState = (): PowerUpState => ({
   shield: 0,
@@ -137,32 +153,25 @@ export default function Scene() {
     const cameraPosTarget = new THREE.Vector3();
     const cameraLookAt = new THREE.Vector3();
 
-    // Cinematic Lighting Setup
-    const ambient = new THREE.AmbientLight("#202533", 0.6); // Cool dark ambient
-    const hemisphere = new THREE.HemisphereLight("#4c6085", "#111620", 0.8); // Blue-ish skyline
+    renderer.toneMappingExposure = 1.5;
 
-    // Main Key Light (Sun/Moon)
-    const dirLight = new THREE.DirectionalLight("#e0e7ff", 2.8);
-    dirLight.position.set(8, 15, -6);
+    // Cinematic Lighting Setup
+    const ambient = new THREE.AmbientLight("#40485a", 0.9);
+    const hemisphere = new THREE.HemisphereLight("#a0c0ff", "#05070a", 1.2);
+
+    // Main Key Light (Dynamic)
+    const dirLight = new THREE.DirectionalLight("#fff", 4.0);
+    dirLight.position.set(10, 20, 10); // From front-top-side for better volume
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.set(2048, 2048);
     dirLight.shadow.bias = -0.0001;
-    dirLight.shadow.radius = 4; // Softer shadows
+    dirLight.shadow.radius = 4;
 
-    scene.add(ambient, hemisphere, dirLight);
-
-    // Rim Light for 3D pop
-    const rimLight = new THREE.SpotLight("#00f0ff", 4.0);
-    rimLight.position.set(-10, 5, 5);
-    rimLight.lookAt(0, 0, 10);
+    // Rim Light (Back Light)
+    const rimLight = new THREE.DirectionalLight("#00f0ff", 2.0);
+    rimLight.position.set(-10, 10, -20);
     scene.add(rimLight);
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 60;
-    dirLight.shadow.camera.left = -12;
-    dirLight.shadow.camera.right = 12;
-    dirLight.shadow.camera.top = 12;
-    dirLight.shadow.camera.bottom = -12;
-    dirLight.shadow.bias = -0.0005;
+
     scene.add(ambient, hemisphere, dirLight);
 
     const composer = new EffectComposer(renderer);
@@ -208,6 +217,7 @@ export default function Scene() {
     const scenery = new SceneryManager(scene, "xianxia", models);
     const track = new TrackManager(scene, "xianxia");
     const particles = new ParticleSystem(scene);
+    const tribulation = new TribulationManager(scene);
 
     // VFX State
     let shakeIntensity = 0;
@@ -453,7 +463,7 @@ export default function Scene() {
       const sceneryCount = Math.random() < 0.6 ? 1 : 2;
       for (let i = 0; i < sceneryCount; i += 1) {
         const z = baseZ + 12 + Math.random() * (chunkLength - 24);
-        scenery.spawn(z);
+        scenery.spawn(z, currentBiome);
       }
     };
 
@@ -643,6 +653,21 @@ export default function Scene() {
         obstacles.update(delta, speed);
         scenery.update(delta, speed, camera);
         particles.update(delta);
+        tribulation.update(delta, speed, player.group.position, () => {
+          if (powerUpState.shield > 0) {
+            powerUpState.shield--;
+            player.setShield(powerUpState.shield > 0);
+            setPowerUps({ ...powerUpState });
+            audioManager.playSfx("powerup");
+            shakeIntensity = 5.0;
+          } else {
+            status = "over";
+            setStatusFromEngine("over");
+            audioManager.playSfx("hit");
+            shakeIntensity = 10.0;
+            audioManager.stopBgm();
+          }
+        });
         powerUps.update(
           delta,
           speed,
@@ -721,6 +746,13 @@ export default function Scene() {
               case "clear":
                 powerUpState.hasClear = true;
                 particles.emit(powerUp.group.position, "#00f0ff", 50);
+                break;
+              case "tribulation":
+                // @ts-ignore
+                tribulation.trigger(15);
+                particles.emit(powerUp.group.position, "#ff0000", 50);
+                audioManager.playSfx("explosion");
+                shakeIntensity = 5.0;
                 break;
               case "coin":
               default:
@@ -826,6 +858,7 @@ export default function Scene() {
       setEngine(null);
       speedLines.dispose();
       particles.dispose();
+      tribulation.dispose();
     };
   }, [
     qualityPreference,

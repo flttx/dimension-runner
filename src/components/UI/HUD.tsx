@@ -1,11 +1,9 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Trophy,
-  Wind,
   Zap,
   Coins,
   Shield,
@@ -20,6 +18,8 @@ import {
 import { audioManager } from "@/lib/audio";
 import { useGameStore } from "@/store/gameStore";
 import clsx from "clsx";
+
+import styles from "./HUD.module.scss";
 
 const formatTimeLeft = (until: number, now: number) => {
   if (!until || until <= now) return 0;
@@ -51,7 +51,6 @@ export default function HUD() {
   const speedLeft = useMemo(() => formatTimeLeft(powerUps.speedUntil, now), [now, powerUps.speedUntil]);
   const magnetLeft = useMemo(() => formatTimeLeft(powerUps.magnetUntil, now), [now, powerUps.magnetUntil]);
 
-  // Floating variants
   const panelVariants = {
     hidden: { opacity: 0, y: -20 },
     visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 20 } },
@@ -64,31 +63,46 @@ export default function HUD() {
   };
 
   return (
-    <div className="hud" style={{ pointerEvents: 'none', height: '100%', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+    <div className={styles.hud}>
+      {/* Speed Vignette */}
+      <div
+        className={styles["speed-vignette"]}
+        style={{ opacity: Math.max(0, (speed - 12) / 24) }}
+      />
+
+      {/* Onboarding / Control Hints */}
+      <AnimatePresence>
+        {status === "running" && distance < 50 && (
+          <motion.div
+            className={styles.instructions}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <span className={styles.label}>Control Matrix</span>
+            <div className={styles.keys}>
+              <span>A / D / SWIPE</span>
+              <span>SPACE / JUMP</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Top Bar Info */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-
+      <div className={styles["hud-top"]}>
         {/* Left: Score & Distance */}
         <motion.div
-          className="glass-panel"
-          style={{ padding: '16px 24px', borderRadius: '20px', display: 'flex', gap: '24px', pointerEvents: 'auto' }}
+          className={clsx("glass-panel", styles["hud-panel"])}
           initial="hidden" animate="visible" variants={panelVariants}
         >
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Trophy size={14} /> SCORE
-            </span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)' }}>
+          <div className={styles["hud-stat"]}>
+            <label><Trophy size={14} /> SCORE</label>
+            <span className={clsx(styles.value, styles.primary)}>
               {score.toLocaleString()}
             </span>
           </div>
-          <div style={{ width: '1px', background: 'var(--glass-border)' }} />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Activity size={14} /> DISTANCE
-            </span>
-            <span style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+          <div className={styles["hud-divider"]} />
+          <div className={styles["hud-stat"]}>
+            <label><Activity size={14} /> DISTANCE</label>
+            <span className={styles.value}>
               {Math.floor(distance)}<span style={{ fontSize: '0.8rem', marginLeft: '2px' }}>m</span>
             </span>
           </div>
@@ -96,8 +110,7 @@ export default function HUD() {
 
         {/* Right: Stats & Coins */}
         <motion.div
-          className="glass-panel"
-          style={{ padding: '12px 20px', borderRadius: '16px', display: 'flex', gap: '20px', alignItems: 'center', pointerEvents: 'auto' }}
+          className={clsx("glass-panel", styles["hud-panel"], styles.stats)}
           initial="hidden" animate="visible" variants={panelVariants}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -105,7 +118,7 @@ export default function HUD() {
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.1rem', fontWeight: 600 }}>{Math.round(speed)}</span>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>KM/H</span>
           </div>
-          <div style={{ width: '1px', height: '24px', background: 'var(--glass-border)' }} />
+          <div className={clsx(styles["hud-divider"], styles.tall)} />
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Coins size={16} style={{ color: 'var(--accent-warn)' }} />
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.1rem', fontWeight: 600 }}>{powerUps.coins}</span>
@@ -114,69 +127,60 @@ export default function HUD() {
       </div>
 
       {/* Active Powerups (Left Center) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+      <div className={styles["hud-powerups"]}>
         <AnimatePresence>
           {powerUps.shield > 0 && (
             <motion.div
               initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}
-              className="glass-panel"
-              style={{ padding: '8px 16px', borderRadius: '50px', display: 'flex', alignItems: 'center', gap: '10px', borderLeft: '3px solid var(--accent-success)' }}
+              className={clsx("glass-panel", styles["hud-badge"], styles.shield)}
             >
               <Shield size={16} color="var(--accent-success)" />
-              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>SHIELD ACTIVE</span>
-              <span style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8rem' }}>{powerUps.shield}</span>
+              <span>SHIELD ACTIVE</span>
+              <span className={styles.count}>{powerUps.shield}</span>
             </motion.div>
           )}
           {speedLeft > 0 && (
             <motion.div
               initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}
-              className="glass-panel"
-              style={{ padding: '8px 16px', borderRadius: '50px', display: 'flex', alignItems: 'center', gap: '10px', borderLeft: '3px solid var(--accent-secondary)' }}
+              className={clsx("glass-panel", styles["hud-badge"], styles.boost)}
             >
-              <Zap size={16} color="var(--accent-secondary)" />
-              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>BOOST</span>
+              <Zap size={16} color="var(--accent-primary)" />
+              <span>BOOST</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{speedLeft}s</span>
             </motion.div>
           )}
           {magnetLeft > 0 && (
             <motion.div
               initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}
-              className="glass-panel"
-              style={{ padding: '8px 16px', borderRadius: '50px', display: 'flex', alignItems: 'center', gap: '10px', borderLeft: '3px solid var(--accent-warn)' }}
+              className={clsx("glass-panel", styles["hud-badge"], styles.magnet)}
             >
               <Magnet size={16} color="var(--accent-warn)" />
-              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>MAGNET</span>
+              <span>MAGNET</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{magnetLeft}s</span>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-
       {/* Bottom Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '12px', pointerEvents: 'auto' }}>
+      <div className={styles["hud-bottom"]}>
+        <div className={styles["hud-btn-group"]}>
           <button
             type="button"
             onClick={() => { playClick(); consumeClear(); }}
             disabled={!powerUps.hasClear}
-            className={clsx("glass-button", "neon-border")}
-            style={{
-              width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              opacity: powerUps.hasClear ? 1 : 0.3,
-              background: powerUps.hasClear ? 'rgba(0, 240, 255, 0.15)' : undefined
-            }}
+            className={clsx(styles["hud-round-btn"], powerUps.hasClear && styles.primary)}
+            style={{ opacity: powerUps.hasClear ? 1 : 0.3 }}
           >
             <Layers size={24} />
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', pointerEvents: 'auto' }}>
+        <div className={styles["hud-btn-group"]}>
           {status === "running" && (
             <button
               onClick={() => { playClick(); pauseGame(); }}
-              className="glass-button"
-              style={{ width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              className={styles["hud-round-btn"]}
             >
               <Pause size={24} />
             </button>
@@ -184,8 +188,7 @@ export default function HUD() {
           {status === "paused" && (
             <button
               onClick={() => { playClick(); resumeGame(); }}
-              className="glass-button"
-              style={{ width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: 'var(--accent-success)', color: 'var(--accent-success)' }}
+              className={clsx(styles["hud-round-btn"], styles.success)}
             >
               <Play size={24} fill="currentColor" />
             </button>
@@ -202,10 +205,9 @@ export default function HUD() {
           >
             {status === "idle" && (
               <motion.div
-                className="glass-panel"
+                className={styles["modal-card"]}
                 variants={cardVariants}
                 initial="hidden" animate="visible" exit="hidden"
-                style={{ padding: '40px', borderRadius: '32px', textAlign: 'center', maxWidth: '400px', width: '90%', border: '1px solid rgba(255,255,255,0.1)' }}
               >
                 {!assetsReady ? (
                   <div style={{ marginBottom: '20px' }}>
@@ -214,21 +216,13 @@ export default function HUD() {
                   </div>
                 ) : (
                   <>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '8px', background: 'linear-gradient(to right, var(--accent-primary), var(--accent-secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                      READY
-                    </h1>
-                    <p style={{ color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6' }}>
+                    <h1 className={styles["modal-title"]}>READY</h1>
+                    <p className={styles["modal-desc"]}>
                       Swipe to dodge. Collect crystals. Survive the void.
                     </p>
                     <button
                       onClick={() => { playClick(); startGame(); }}
-                      className="glass-button"
-                      style={{
-                        width: '100%', padding: '16px', borderRadius: '16px', fontSize: '1.1rem', fontWeight: 700,
-                        background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-                        color: '#000', border: 'none',
-                        boxShadow: '0 8px 24px var(--glow-secondary)'
-                      }}
+                      className={styles["modal-action"]}
                     >
                       INITIATE RUN
                     </button>
@@ -239,40 +233,36 @@ export default function HUD() {
 
             {status === "over" && (
               <motion.div
-                className="glass-panel"
+                className={styles["modal-card"]}
                 variants={cardVariants}
                 initial="hidden" animate="visible" exit="hidden"
-                style={{ padding: '40px', borderRadius: '32px', textAlign: 'center', maxWidth: '400px', width: '90%' }}
               >
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--accent-warn)', marginBottom: '8px', letterSpacing: '0.1em' }}>
+                <h2 className={clsx(styles["modal-title"], styles.error)}>
                   SYNC FAILED
                 </h2>
-                <div style={{ margin: '32px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '16px' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>SCORE</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{score}</div>
+                <div className={styles["modal-stats-grid"]}>
+                  <div className={styles["modal-stat-box"]}>
+                    <div className={styles.label}>SCORE</div>
+                    <div className={styles.value}>{score}</div>
                   </div>
-                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '16px' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>DISTANCE</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{distance}m</div>
+                  <div className={styles["modal-stat-box"]}>
+                    <div className={styles.label}>DISTANCE</div>
+                    <div className={styles.value}>{distance}m</div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '16px' }}>
                   <button
                     onClick={() => { playClick(); resetGame(); }}
-                    className="glass-button"
-                    style={{ flex: 1, padding: '14px', borderRadius: '14px', fontSize: '0.9rem' }}
+                    className={styles["modal-action"]}
+                    style={{ flex: 1, padding: '14px', borderRadius: '18px' }}
                   >
-                    <RotateCcw size={18} />
+                    <RotateCcw size={20} />
                   </button>
                   <button
                     onClick={() => { playClick(); startGame(); }}
-                    className="glass-button"
-                    style={{
-                      flex: 3, padding: '14px', borderRadius: '14px', fontSize: '1rem', fontWeight: 700,
-                      background: 'var(--text-main)', color: 'var(--bg-deep)'
-                    }}
+                    className={clsx(styles["modal-action"], styles.secondary)}
+                    style={{ flex: 2.5 }}
                   >
                     RETRY
                   </button>

@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 import { modelCatalog, pickModelUrl } from "@/lib/modelCatalog";
 import type { ModelLibrary } from "@/lib/modelLoader";
-import type { Theme } from "@/types";
+import type { Theme, Biome } from "@/types";
 
 const sidePositions = [-8, 8];
 const sceneryShowDistance = 140;
@@ -72,13 +72,17 @@ export class SceneryManager {
     });
   }
 
-  spawn(z: number) {
-    const item = this.getOrCreate();
+  spawn(z: number, biome: Biome = 'city') {
+    const item = this.getOrCreate(biome);
     const side = Math.random() < 0.5 ? 0 : 1;
     const jitter = (Math.random() - 0.5) * 1.5;
     item.active = true;
     item.group.visible = true;
-    item.group.position.set(sidePositions[side] + jitter, 0, z);
+
+    // Ocean: Farther out
+    const xOffset = biome === 'ocean' ? (side === 0 ? -20 : 20) : sidePositions[side];
+
+    item.group.position.set(xOffset + jitter, 0, z);
     item.timer = 0;
   }
 
@@ -110,16 +114,19 @@ export class SceneryManager {
     });
   }
 
-  private getOrCreate() {
+  private getOrCreate(biome: Biome) {
+    // Basic pooling: Just grabbing inactive ones. 
+    // Ideally pool should be keyed by biome, but for now we clear and recreate model if needed.
+    // Optimization: Check if model matches biome? Too complex for this step.
     const available = this.pool.find((item) => !item.active);
     if (available) {
       available.group.clear();
-      available.model = this.createModel();
+      available.model = this.createModel(biome);
       available.group.add(available.model);
       return available;
     }
     const group = new THREE.Group();
-    const model = this.createModel();
+    const model = this.createModel(biome);
     group.add(model);
     const item: SceneryInstance = {
       group,
@@ -132,7 +139,39 @@ export class SceneryManager {
     return item;
   }
 
-  private createModel() {
+  private createModel(biome: Biome) {
+    if (biome === 'forest') {
+      const group = new THREE.Group();
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 0.8, 4, 6),
+        new THREE.MeshStandardMaterial({ color: 0x3e2723 })
+      );
+      trunk.position.y = 2;
+      const leaves = new THREE.Mesh(
+        new THREE.ConeGeometry(3, 7, 7),
+        new THREE.MeshStandardMaterial({ color: 0x1b5e20 })
+      );
+      leaves.position.y = 5.5;
+      group.add(trunk, leaves);
+      const s = 1.2 + Math.random();
+      group.scale.set(s, s, s);
+      return group;
+    }
+
+    if (biome === 'ocean') {
+      const group = new THREE.Group();
+      if (Math.random() > 0.3) return group; // Some empty slots
+      const island = new THREE.Mesh(
+        new THREE.ConeGeometry(5, 4, 5),
+        new THREE.MeshStandardMaterial({ color: 0x444444, flatShading: true })
+      );
+      island.position.y = -1;
+      group.add(island);
+      const s = 1 + Math.random() * 2;
+      group.scale.set(s, s, s);
+      return group;
+    }
+
     const url = pickModelUrl(modelCatalog.scenery[this.theme]);
     const model = this.models.clone(url);
     const box = new THREE.Box3().setFromObject(model);

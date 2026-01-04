@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Chakra_Petch, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
+import "./globals.scss";
 
 const chakra = Chakra_Petch({
   variable: "--font-chakra",

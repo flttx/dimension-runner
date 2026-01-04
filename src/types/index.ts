@@ -1,4 +1,5 @@
 export type Theme = "xianxia" | "minecraft";
+export type Biome = "city" | "forest" | "ocean";
 export type GameStatus = "idle" | "running" | "paused" | "over";
 export type Lane = 0 | 1 | 2;
 export type QualityLevel = "high" | "medium" | "low";
@@ -8,11 +9,30 @@ export type ObstacleType =
   | "lightning"
   | "sword_rain"
   | "boulder"
+  | "beast"
+  | "whirlwind"
+  | "falling_seal"
+  | "spirit_laser"
+  | "ice_spikes"
+  | "soul_bell"
+  | "bagua"
+  | "ghost_fire"
+  | "golden_lotus"
+  | "iron_chains"
+  | "stone_stele"
+  | "sword_array"
+  | "furnace"
+  | "talisman"
+  | "yin_yang"
   | "creeper"
   | "tnt"
-  | "lava";
+  | "lava"
+  | "mc_anvil"
+  | "mc_cactus"
+  | "mc_magma"
+  | "mc_arrow";
 
-export type PowerUpType = "shield" | "speed" | "clear" | "magnet" | "coin";
+export type PowerUpType = "shield" | "speed" | "clear" | "magnet" | "coin" | "tribulation";
 
 export interface PowerUpState {
   shield: number;

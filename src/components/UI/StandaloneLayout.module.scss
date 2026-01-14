@@ -1,0 +1,228 @@
+.topbar {
+    width: min(1120px, 100%);
+    margin: 0 auto;
+    padding: 14px 18px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    pointer-events: auto;
+    position: relative;
+}
+
+.topbar::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(
+        to right,
+        transparent,
+        var(--accent-primary),
+        var(--accent-secondary),
+        transparent
+    );
+    opacity: 0.7;
+}
+
+.brand {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
+}
+
+.titleRow {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    background: linear-gradient(135deg, #ffffff 10%, var(--accent-primary) 65%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 18px rgba(0, 240, 255, 0.2);
+}
+
+.titleEn {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.subtitle {
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.divider {
+    width: 1px;
+    height: 28px;
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        rgba(255, 255, 255, 0.16),
+        transparent
+    );
+}
+
+.controlGroup {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.controlLabel {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    white-space: nowrap;
+}
+
+.segmented {
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.72);
+    transition:
+        background 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+}
+
+.segment:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.segmentActivePrimary {
+    color: var(--accent-primary);
+    background: rgba(0, 240, 255, 0.1);
+    box-shadow:
+        0 0 0 1px rgba(0, 240, 255, 0.25) inset,
+        0 0 18px rgba(0, 240, 255, 0.15);
+}
+
+.segmentActiveSecondary {
+    color: var(--accent-secondary);
+    background: rgba(112, 0, 255, 0.12);
+    box-shadow:
+        0 0 0 1px rgba(112, 0, 255, 0.22) inset,
+        0 0 18px rgba(112, 0, 255, 0.12);
+}
+
+.segmentText {
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.main {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    pointer-events: none;
+}
+
+.footer {
+    width: min(1120px, 100%);
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.hintPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    pointer-events: auto;
+}
+
+.hintItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hintDivider {
+    width: 1px;
+    height: 18px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 768px) {
+    .topbar {
+        padding: 12px 14px;
+    }
+
+    .brand {
+        min-width: 0;
+    }
+
+    .controls {
+        width: 100%;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .divider {
+        display: none;
+    }
+
+    .segment {
+        padding: 8px 10px;
+    }
+
+    .hintPill {
+        width: 100%;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border-radius: 18px;
+        font-size: 0.82rem;
+    }
+}
+
